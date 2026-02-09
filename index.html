@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trig Match Game - Record System</title>
+    <style>
+        /* CSS Section */
+        body { background: #0f172a; color: #f8fafc; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .game-container { text-align: center; width: 400px; padding: 20px; background: #1e293b; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        .stats { margin-bottom: 15px; font-weight: bold; color: #38bdf8; font-size: 0.9rem; }
+        
+        input { width: 80%; padding: 10px; margin: 8px 0; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; text-align: center; }
+        
+        .game-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .card { aspect-ratio: 1/1; background: #334155; border: 2px solid #475569; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 0.9rem; font-weight: bold; cursor: pointer; transition: all 0.2s; user-select: none; color: transparent; }
+        .card.flipped { background: #38bdf8; color: #0f172a; transform: scale(1.05); }
+        .card.matched { background: #22c55e; border-color: #16a34a; color: white; cursor: default; }
+        
+        button { background: #38bdf8; color: #0f172a; border: none; padding: 12px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; margin-top: 10px; }
+        button.btn-reset { background: #ef4444; color: white; width: auto; }
+    </style>
+</head>
+<body>
+
+    <!-- หน้าจอลงทะเบียน -->
+    <div id="setup-screen" class="game-container">
+        <h2>ลงทะเบียนผู้เล่น</h2>
+        <input type="text" id="p-name" placeholder="ชื่อ-นามสกุล">
+        <input type="text" id="p-class" placeholder="ชั้น (เช่น ม.3/1)">
+        <input type="number" id="p-no" placeholder="เลขที่">
+        <button onclick="startGame()">เริ่มเล่นเกม</button>
+    </div>
+
+    <!-- หน้าจอเกม -->
+    <div id="game-screen" class="game-container" style="display:none;">
+        <div class="stats">
+            <span id="display-info"></span><br>
+            Moves: <span id="moves">0</span> | Matches: <span id="matches">0</span>/8
+        </div>
+        <div id="game-board" class="game-board"></div>
+        <button class="btn-reset" onclick="resetGame()">เริ่มใหม่</button>
+    </div>
+
+    <script>
+        /* JavaScript Section */
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgMsJk1ZSYBdO7rGADXLQcwyoI5A09m7FqTh1JyLu_iCgEyQs28n8uvNcbi5zYwuSG/exec"; 
+        
+        const dataGroups = [
+            [{label: "sin 30°", val: 0.5}, {label: "1/2", val: 0.5}, {label: "cos 60°", val: 0.5}],
+            [{label: "cos 30°", val: 0.866}, {label: "√3/2", val: 0.866}, {label: "sin 60°", val: 0.866}],
+            [{label: "tan 45°", val: 1}, {label: "1", val: 1}, {label: "sin 90°", val: 1}],
+            [{label: "sin 45°", val: 0.707}, {label: "1/√2", val: 0.707}, {label: "cos 45°", val: 0.707}],
+            [{label: "tan 60°", val: 1.732}, {label: "√3", val: 1.732}],
+            [{label: "tan 30°", val: 0.577}, {label: "1/√3", val: 0.577}],
+            [{label: "sin 0°", val: 0}, {label: "0", val: 0}, {label: "cos 90°", val: 0}],
+            [{label: "cos 0°", val: 1}, {label: "1", val: 1}]
+        ];
+
+        let cards = [], flipped = [], moves = 0, matches = 0, isLock = false, playerData = {};
+
+        function startGame() {
+            playerData = {
+                name: document.getElementById('p-name').value,
+                className: document.getElementById('p-class').value,
+                no: document.getElementById('p-no').value
+            };
+            if(!playerData.name || !playerData.className || !playerData.no) return alert("กรุณากรอกข้อมูลให้ครบ");
+            
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('display-info').innerText = `${playerData.name} (${playerData.className}) เลขที่ ${playerData.no}`;
+            init();
+        }
+
+        function init() {
+            let deck = [];
+            let shuffledGroups = [...dataGroups].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < 8; i++) {
+                let group = shuffledGroups[i % shuffledGroups.length];
+                let items = [...group].sort(() => Math.random() - 0.5).slice(0, 2);
+                deck.push(items[0], items[1]); 
+            }
+            cards = deck.sort(() => Math.random() - 0.5);
+            render();
+        }
+
+        function render() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            cards.forEach((card, i) => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.onclick = () => flip(i, el);
+                board.appendChild(el);
+            });
+        }
+
+        function flip(i, el) {
+            if (isLock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
+            el.classList.add('flipped');
+            el.innerText = cards[i].label;
+            flipped.push({ i, val: cards[i].val, el });
+            if (flipped.length === 2) { moves++; document.getElementById('moves').innerText = moves; check(); }
+        }
+
+        function check() {
+            const [c1, c2] = flipped;
+            isLock = true;
+            if (Math.abs(c1.val - c2.val) < 0.01) {
+                setTimeout(() => {
+                    c1.el.classList.replace('flipped', 'matched');
+                    c2.el.classList.replace('flipped', 'matched');
+                    matches++;
+                    document.getElementById('matches').innerText = matches;
+                    flipped = []; isLock = false;
+                    if (matches === 8) finishGame();
+                }, 400);
+            } else {
+                setTimeout(() => {
+                    c1.el.classList.remove('flipped'); c1.el.innerText = '';
+                    c2.el.classList.remove('flipped'); c2.el.innerText = '';
+                    flipped = []; isLock = false;
+                }, 700);
+            }
+        }
+
+        function finishGame() {
+            alert(`เก่งมาก! บันทึกคะแนนลงระบบ...`);
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: 'no-cors',
+                body: JSON.stringify({...playerData, moves: moves})
+            }).then(() => alert("บันทึกสำเร็จ!")).catch(() => alert("บันทึกผิดพลาด แต่คุณชนะแล้ว!"));
+        }
+
+        function resetGame() { moves = 0; matches = 0; flipped = []; isLock = false; document.getElementById('moves').innerText = '0'; document.getElementById('matches').innerText = '0'; init(); }
+    </script>
+</body>
+</html>
