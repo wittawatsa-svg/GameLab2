@@ -44,103 +44,100 @@
 
     <script>
 /* JavaScript Section */
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzgMsJk1ZSYBdO7rGADXLQcwyoI5A09m7FqTh1JyLu_iCgEyQs28n8uvNcbi5zYwuSG/exec"; 
+        
+        const dataGroups = [
+            [{label: "sin 30°", val: 0.5}, {label: "1/2", val: 0.5}, {label: "cos 60°", val: 0.5}],
+            [{label: "cos 30°", val: 0.866}, {label: "√3/2", val: 0.866}, {label: "sin 60°", val: 0.866}],
+            [{label: "tan 45°", val: 1}, {label: "1", val: 1}, {label: "sin 90°", val: 1}],
+            [{label: "sin 45°", val: 0.707}, {label: "1/√2", val: 0.707}, {label: "cos 45°", val: 0.707}],
+            [{label: "tan 60°", val: 1.732}, {label: "√3", val: 1.732}],
+            [{label: "tan 30°", val: 0.577}, {label: "1/√3", val: 0.577}],
+            [{label: "sin 0°", val: 0}, {label: "0", val: 0}, {label: "cos 90°", val: 0}],
+            [{label: "cos 0°", val: 1}, {label: "1", val: 1}]
+        ];
 
-const _0x4f2e = "aHR0cHM6Ly9zY3JpcHQuZ29vZ2xlLmNvbS9tYWNyb3Mvcy9BS2Z5Y3J6Z01zSmsxWlNZQmRPN3JHQURYTFFjd3lvSTVBMDltN0ZxVGgxSnlMdV9pQ2dFeVFzMjhuOHV2TmNiaTV6WXd1U0cvZXhlYw==";
+        let cards = [], flipped = [], moves = 0, matches = 0, isLock = false, playerData = {};
 
-const getServiceUrl = (encoded) => atob(encoded);
+        function startGame() {
+            playerData = {
+                name: document.getElementById('p-name').value,
+                className: document.getElementById('p-class').value,
+                no: document.getElementById('p-no').value
+            };
+            if(!playerData.name || !playerData.className || !playerData.no) return alert("กรุณากรอกข้อมูลให้ครบ");
+            
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            document.getElementById('display-info').innerText = `${playerData.name} (${playerData.className}) เลขที่ ${playerData.no}`;
+            init();
+        }
 
-const dataGroups = [
-    [{label: "sin 30°", val: 0.5}, {label: "1/2", val: 0.5}, {label: "cos 60°", val: 0.5}],
-    [{label: "cos 30°", val: 0.866}, {label: "√3/2", val: 0.866}, {label: "sin 60°", val: 0.866}],
-    [{label: "tan 45°", val: 1}, {label: "1", val: 1}, {label: "sin 90°", val: 1}],
-    [{label: "sin 45°", val: 0.707}, {label: "1/√2", val: 0.707}, {label: "cos 45°", val: 0.707}],
-    [{label: "tan 60°", val: 1.732}, {label: "√3", val: 1.732}],
-    [{label: "tan 30°", val: 0.577}, {label: "1/√3", val: 0.577}],
-    [{label: "sin 0°", val: 0}, {label: "0", val: 0}, {label: "cos 90°", val: 0}],
-    [{label: "cos 0°", val: 1}, {label: "1", val: 1}]
-];
+        function init() {
+            let deck = [];
+            let shuffledGroups = [...dataGroups].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < 8; i++) {
+                let group = shuffledGroups[i % shuffledGroups.length];
+                let items = [...group].sort(() => Math.random() - 0.5).slice(0, 2);
+                deck.push(items[0], items[1]); 
+            }
+            cards = deck.sort(() => Math.random() - 0.5);
+            render();
+        }
 
-let cards = [], flipped = [], moves = 0, matches = 0, isLock = false, playerData = {};
+        function render() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            cards.forEach((card, i) => {
+                const el = document.createElement('div');
+                el.className = 'card';
+                el.onclick = () => flip(i, el);
+                board.appendChild(el);
+            });
+        }
 
-function startGame() {
-    playerData = {
-        name: document.getElementById('p-name').value,
-        className: document.getElementById('p-class').value,
-        no: document.getElementById('p-no').value
-    };
-    if(!playerData.name || !playerData.className || !playerData.no) return alert("กรุณากรอกข้อมูลให้ครบ");
-    
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('game-screen').style.display = 'block';
-    document.getElementById('display-info').innerText = `${playerData.name} (${playerData.className}) เลขที่ ${playerData.no}`;
-    init();
-}
+        function flip(i, el) {
+            if (isLock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
+            el.classList.add('flipped');
+            el.innerText = cards[i].label;
+            flipped.push({ i, val: cards[i].val, el });
+            if (flipped.length === 2) { moves++; document.getElementById('moves').innerText = moves; check(); }
+        }
 
-function init() {
-    let deck = [];
-    let shuffledGroups = [...dataGroups].sort(() => Math.random() - 0.5);
-    for (let i = 0; i < 8; i++) {
-        let group = shuffledGroups[i % shuffledGroups.length];
-        let items = [...group].sort(() => Math.random() - 0.5).slice(0, 2);
-        deck.push(items[0], items[1]); 
-    }
-    cards = deck.sort(() => Math.random() - 0.5);
-    render();
-}
+        function check() {
+            const [c1, c2] = flipped;
+            isLock = true;
+            if (Math.abs(c1.val - c2.val) < 0.01) {
+                setTimeout(() => {
+                    c1.el.classList.replace('flipped', 'matched');
+                    c2.el.classList.replace('flipped', 'matched');
+                    matches++;
+                    document.getElementById('matches').innerText = matches;
+                    flipped = []; isLock = false;
+                    if (matches === 8) finishGame();
+                }, 400);
+            } else {
+                setTimeout(() => {
+                    c1.el.classList.remove('flipped'); c1.el.innerText = '';
+                    c2.el.classList.remove('flipped'); c2.el.innerText = '';
+                    flipped = []; isLock = false;
+                }, 700);
+            }
+        }
 
-function render() {
-    const board = document.getElementById('game-board');
-    board.innerHTML = '';
-    cards.forEach((card, i) => {
-        const el = document.createElement('div');
-        el.className = 'card';
-        el.onclick = () => flip(i, el);
-        board.appendChild(el);
-    });
-}
+        function finishGame() {
+            alert(`เก่งมาก! บันทึกคะแนนลงระบบ...`);
+            fetch(SCRIPT_URL, {
+                method: "POST",
+                mode: 'no-cors',
+                body: JSON.stringify({...playerData, moves: moves})
+            }).then(() => alert("บันทึกสำเร็จ!")).catch(() => alert("บันทึกผิดพลาด แต่คุณชนะแล้ว!"));
+        }
 
-function flip(i, el) {
-    if (isLock || el.classList.contains('flipped') || el.classList.contains('matched')) return;
-    el.classList.add('flipped');
-    el.innerText = cards[i].label;
-    flipped.push({ i, val: cards[i].val, el });
-    if (flipped.length === 2) { moves++; document.getElementById('moves').innerText = moves; check(); }
-}
-
-function check() {
-    const [c1, c2] = flipped;
-    isLock = true;
-    if (Math.abs(c1.val - c2.val) < 0.01) {
-        setTimeout(() => {
-            c1.el.classList.replace('flipped', 'matched');
-            c2.el.classList.replace('flipped', 'matched');
-            matches++;
-            document.getElementById('matches').innerText = matches;
-            flipped = []; isLock = false;
-            if (matches === 8) finishGame();
-        }, 400);
-    } else {
-        setTimeout(() => {
-            c1.el.classList.remove('flipped'); c1.el.innerText = '';
-            c2.el.classList.remove('flipped'); c2.el.innerText = '';
-            flipped = []; isLock = false;
-        }, 700);
-    }
-}
-
-function finishGame() {
-    alert(`เก่งมาก! บันทึกคะแนนลงระบบ...`);
-    // เรียกใช้ฟังก์ชันถอดรหัส URL ตรงนี้
-    fetch(getServiceUrl(_0x4f2e), {
-        method: "POST",
-        mode: 'no-cors',
-        body: JSON.stringify({...playerData, moves: moves})
-    }).then(() => alert("บันทึกสำเร็จ!")).catch(() => alert("บันทึกผิดพลาด!"));
-}
-
-function resetGame() { moves = 0; matches = 0; flipped = []; isLock = false; document.getElementById('moves').innerText = '0'; document.getElementById('matches').innerText = '0'; init(); }
-
+        function resetGame() { moves = 0; matches = 0; flipped = []; isLock = false; document.getElementById('moves').innerText = '0'; document.getElementById('matches').innerText = '0'; init(); }
+ 
     </script>
 </body>
 
 </html>
+
