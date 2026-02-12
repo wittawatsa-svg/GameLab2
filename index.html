@@ -125,19 +125,31 @@
             }
         }
 
-        function finishGame() {
-            alert(`เก่งมาก! บันทึกคะแนนลงระบบ...`);
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                mode: 'no-cors',
-                body: JSON.stringify({...playerData, moves: moves})
-            }).then(() => alert("บันทึกสำเร็จ!")).catch(() => alert("บันทึกผิดพลาด แต่คุณชนะแล้ว!"));
-        }
+       function finishGame() {
+    alert(`เก่งมาก! บันทึกคะแนนลงระบบ...`);
+    
+    // สร้างชุดข้อมูลที่จะส่ง
+    const payload = {
+        name: playerData.name,
+        className: playerData.className,
+        no: playerData.no,
+        moves: moves,
+        gameId: "Game1" // <--- เพิ่มบรรทัดนี้เข้าไป เพื่อให้ลงหน้า Tab ชื่อ Game1
+    };
 
+    fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: 'no-cors',
+        body: JSON.stringify(payload) // ส่ง payload ที่รวม gameId ไปด้วย
+    })
+    .then(() => alert("บันทึกสำเร็จ!"))
+    .catch(() => alert("บันทึกผิดพลาด!"));
+}
         function resetGame() { moves = 0; matches = 0; flipped = []; isLock = false; document.getElementById('moves').innerText = '0'; document.getElementById('matches').innerText = '0'; init(); }
     </script>
 </body>
 </html>
+
 
 
 
